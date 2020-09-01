@@ -1,22 +1,28 @@
 import 'package:firebase_todo/services/authentication.dart';
 import 'package:firebase_todo/view/signin_signup_page.dart';
 import 'package:flutter/material.dart';
+import '../home_page.dart';
 
-enum AuthStatus { NOT_DETERMINE, NOT_SIGN_IN, SIGN_iN }
+//root
+
+enum AuthStatus {
+  NOT_DETERMINED,
+  NOT_LOGGED_IN,
+  LOGGED_IN,
+}
 
 class RootPage extends StatefulWidget {
+  RootPage({this.auth});
+
   final BaseAuth auth;
 
-  const RootPage({Key key, this.auth}) : super(key: key);
-
   @override
-  _RootPageState createState() => _RootPageState();
+  State<StatefulWidget> createState() => new _RootPageState();
 }
 
 class _RootPageState extends State<RootPage> {
-  AuthStatus authStatus = AuthStatus.NOT_DETERMINE;
-
-  String userId = "";
+  AuthStatus authStatus = AuthStatus.NOT_DETERMINED;
+  String _userId = "";
 
   @override
   void initState() {
@@ -24,33 +30,36 @@ class _RootPageState extends State<RootPage> {
     widget.auth.getCurentUser().then((user) {
       setState(() {
         if (user != null) {
-          userId = user.uid;
+          _userId = user?.uid;
         }
         authStatus =
-            user?.uid == null ? AuthStatus.NOT_SIGN_IN : AuthStatus.SIGN_iN;
+            user?.uid == null ? AuthStatus.NOT_LOGGED_IN : AuthStatus.LOGGED_IN;
       });
     });
   }
 
-  void signInCallBack() {
-    widget.auth.getCurentUser().then((value) {
+  void loginCallback() {
+    widget.auth.getCurentUser().then((user) {
       setState(() {
-        userId = value.uid.toString();
-        authStatus = AuthStatus.SIGN_iN;
+        _userId = user.uid.toString();
       });
     });
-  }
-
-  void signOut() {
     setState(() {
-      authStatus = AuthStatus.NOT_SIGN_IN;
-      userId = "";
+      authStatus = AuthStatus.LOGGED_IN;
     });
   }
 
-  Widget waitingScreen() {
+  void logoutCallback() {
+    setState(() {
+      authStatus = AuthStatus.NOT_LOGGED_IN;
+      _userId = "";
+    });
+  }
+
+  Widget buildWaitingScreen() {
     return Scaffold(
-      body: Center(
+      body: Container(
+        alignment: Alignment.center,
         child: CircularProgressIndicator(),
       ),
     );
@@ -59,21 +68,27 @@ class _RootPageState extends State<RootPage> {
   @override
   Widget build(BuildContext context) {
     switch (authStatus) {
-      case AuthStatus.NOT_DETERMINE:
-        return waitingScreen();
+      case AuthStatus.NOT_DETERMINED:
+        return buildWaitingScreen();
         break;
-
-      case AuthStatus.NOT_SIGN_IN:
-        return SignInSignUpPage(
+      case AuthStatus.NOT_LOGGED_IN:
+        return new LoginSignupPage(
           auth: widget.auth,
-          siginCallBack: signInCallBack,
+          loginCallback: loginCallback,
         );
         break;
-      case AuthStatus.SIGN_iN:
+      case AuthStatus.LOGGED_IN:
+        if (_userId.length > 0 && _userId != null) {
+          return new HomePage(
+            userId: _userId,
+            auth: widget.auth,
+            logoutCallback: logoutCallback,
+          );
+        } else
+          return buildWaitingScreen();
         break;
-
       default:
-        return waitingScreen();
+        return buildWaitingScreen();
     }
   }
 }
